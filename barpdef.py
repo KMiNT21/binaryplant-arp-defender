@@ -2,9 +2,6 @@ __author__ = 'KMiNT21'
 product_name = 'ARP Defender'
 company_name = 'BinaryPlant'
 full_product_name = 'BinaryPlant ARP Defender'
-app_logo_icon = 'res\\logo.ico'
-icon_protected = 'res\\protected.ico'
-icon_alert = 'res\\alert.png'
 hkey = "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run"
 settings_start_minimized = 'settings_start_minimized'
 settings_auto_protect = 'settings_auto_protect'
@@ -18,10 +15,18 @@ timer_in_sec = 60
 import sys, os, subprocess, re, ctypes
 from PyQt5 import QtGui, QtCore, uic
 from PyQt5.QtWidgets import QApplication, QSystemTrayIcon, QMenu, QMainWindow, QTableWidgetItem, QTreeWidgetItem
-from PyQt5.QtCore import QSettings, QTimer
+from PyQt5.QtCore import QSettings, QTimer, QMutex
 import win32gui
 import win32con
 
+
+def get_app_dir():
+    return os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.realpath(__file__))
+full_path = lambda x: os.path.join(get_app_dir(), x)
+app_logo_icon = full_path('res\\logo.ico')
+icon_protected = full_path('res\\protected.ico')
+icon_alert = full_path('res\\alert.png')
+ui_filename = full_path('barp-win.ui')
 
 def get_arp_table():
     res = subprocess.check_output('arp -a', shell=True).decode("utf-8") #.rstrip())
@@ -85,7 +90,7 @@ def add_static_record(ip, mac, if_name):
     #     so, we have to use netsh.exe and must find network interface name (i.e. in 'ipconfig' output)
     # 2) Rights elevation
     #     working with powershell for elevation fails with encoding problems when IF_NAME non English
-    #     cmd = "Powershell Start-Process 'netsh.exe' -ArgumentList 'interface ipv4 add neighbors \"%s\" \"%s\" \"%s\" store=active' -Verb runAs" % (if_name, ip, mac)
+    #     ("Powershell Start-Process -WindowStyle hidden 'netsh.exe' -ArgumentList 'interface ipv4 add neighbors \"%s\" \"%s\" \"%s\" store=active' -Verb runAs" % (if_name, ip, mac))
     #     so, we have to use elevation by ShellExecuteW:
     #     ShellExecuteW(None, "runas", simple_exe, simple_params, None, 1)
     exe_file = "netsh.exe"
@@ -96,8 +101,6 @@ set_gw_static = lambda : add_static_record(get_default_gateway_ip(), find_gw_mac
 
 def remove_static_record(ip):
     cmd = "Powershell Start-Process -WindowStyle hidden 'arp.exe' -ArgumentList '-d %s' -Verb runAs" % ip
-    print('Removing STATIC record...')
-    print(cmd)
     subprocess.Popen(cmd)
 set_gw_dynamic = lambda : remove_static_record(get_default_gateway_ip())
 
@@ -135,8 +138,7 @@ class BarpApp(QApplication):
 class BarpMainWindow(QMainWindow):
     def __init__(self, parent=None):
         super(BarpMainWindow, self).__init__()
-        self.path = os.path.dirname(os.path.abspath(__file__))
-        self.ui_file = os.path.join(self.path, 'barp-win.ui')
+        self.ui_file = ui_filename
         uic.loadUi(self.ui_file, self)
         timer = QTimer(self)
         timer.timeout.connect(self.onTimer)
@@ -264,10 +266,16 @@ class BarpMainWindow(QMainWindow):
 
 
 if __name__ == '__main__':
+    # only for Windows - do not allow second instance
+    import win32event, pywintypes, win32api
+    hMutex = win32event.CreateMutex(None, pywintypes.TRUE, product_name)
+    if (win32api.GetLastError() == 183): #ERROR_ALREADY_EXISTS = 183
+        sys.exit()
     app = BarpApp(sys.argv)
     app.showTrayMenu()
     if not QSettings(company_name, product_name).value(settings_start_minimized, type=bool):
         app.showSettings()
-    if QSettings(company_name, product_name).value(settings_auto_protect, type=bool) and not is_gw_static:
+    if QSettings(company_name, product_name).value(settings_auto_protect, type=bool) and not is_gw_static():
         QTimer.singleShot(5000, set_gw_static)
+        QTimer.singleShot(8000, app.settings_window.onTimer)
     sys.exit(app.exec_())
