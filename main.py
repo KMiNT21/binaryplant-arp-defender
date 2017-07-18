@@ -8,7 +8,7 @@ icon_alert = 'res\\alert.png'
 hkey = "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run"
 settings_start_minimized = 'settings_start_minimized'
 settings_auto_protect = 'settings_auto_protect'
-timer_in_sec = 15
+timer_in_sec = 60
 
 
 # INFO: get_arp_table() = list of records like [boolStaticFlag, 'IP', 'MAC']
@@ -19,14 +19,8 @@ import sys, os, subprocess, re, ctypes
 from PyQt5 import QtGui, QtCore, uic
 from PyQt5.QtWidgets import QApplication, QSystemTrayIcon, QMenu, QMainWindow, QTableWidgetItem, QTreeWidgetItem
 from PyQt5.QtCore import QSettings, QTimer
-from functools import partial
-#from PyQt5.QtCore import pyqtSignal
-#from PyQt5.uic import loadUi
 import win32gui
 import win32con
-import win32api
-import pywintypes
-import traceback
 
 
 def get_arp_table():
@@ -166,11 +160,9 @@ class BarpMainWindow(QMainWindow):
         self.pushButton_ClearHistory.clicked.connect(self.buttonClearHistory)
         # first init checkboxes from setting
         self.reload_checkboxes()
-        # fist init tables
-        self.onTimer()
+        self.onTimer() # fist init table and interface widgets
+        # hook WndProc for receiving wake-up event
         self.oldWndProc = win32gui.SetWindowLong(self.winId(), win32con.GWL_WNDPROC, self.localWndProc)
-        if QSettings(company_name, product_name).value(settings_auto_protect, type=bool) and not is_gw_static:
-            QTimer.singleShot(5000, set_gw_static)
 
     def accept(self):
         QSettings(company_name, product_name).setValue(settings_start_minimized, self.checkBox_StartMinimized.isChecked())
@@ -217,8 +209,6 @@ class BarpMainWindow(QMainWindow):
 
         wt.resizeColumnsToContents()
         wt.horizontalHeader().setStretchLastSection(True)
-        #print(getGwIp())
-        #print(protection_enabled)
 
     def updateHistoryWidget(self, history_dic):
         self.treeWidget_History.clear()
@@ -229,14 +219,11 @@ class BarpMainWindow(QMainWindow):
             ip_line.setExpanded(len(history_dic[ip]) > 1)
 
     def toggleProtectionState(self):
-        #cmd = "Powershell Start-Process -WindowStyle hidden 'arp.exe' -ArgumentList "
-        #cmd += ("'-d %s' -Verb runAs" %get_default_gateway_ip() if is_gw_static() else "'-s %s %s' -Verb runAs" % (get_default_gateway_ip(), find_gw_mac()))
-        #subprocess.Popen(cmd)
         set_gw_dynamic() if is_gw_static() else set_gw_static()
-        QTimer.singleShot(1000, self.onTimer)
-        QTimer.singleShot(2000, self.onTimer)
-        QTimer.singleShot(3000, self.onTimer)
-        QTimer.singleShot(5000, self.onTimer)
+        QTimer.singleShot(1000, self.onTimer) # to boost interface
+        QTimer.singleShot(2000, self.onTimer) # to boost interface
+        QTimer.singleShot(3000, self.onTimer) # to boost interface
+        QTimer.singleShot(5000, self.onTimer) # to boost interface
         return
 
 
@@ -281,4 +268,6 @@ if __name__ == '__main__':
     app.showTrayMenu()
     if not QSettings(company_name, product_name).value(settings_start_minimized, type=bool):
         app.showSettings()
+    if QSettings(company_name, product_name).value(settings_auto_protect, type=bool) and not is_gw_static:
+        QTimer.singleShot(5000, set_gw_static)
     sys.exit(app.exec_())
