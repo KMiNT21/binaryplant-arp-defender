@@ -241,30 +241,26 @@ class BarpMainWindow(QMainWindow):
 
 
     def onTimer(self):
-        #print('.')
         if self.table == get_arp_table():
-            #print('Same Same')
-            pass
+            return
+        # Something new found in ARP Table
+        self.table = get_arp_table()
+        self.updateTableWidget(self.table)
+        self.history = self.update_history_dic(self.table, self.history)
+        self.updateHistoryWidget(self.history)
+        # refresh BUTTON
+        if is_gw_static():
+            self.pushButton_Protect.setText('Protected. Click to remove statiс record')
+            self.pushButton_Protect.setIcon(QtGui.QIcon(icon_protected))
+            self.groupBox_gw.setStyleSheet('color: rgb(0, 100, 0);')
         else:
-            #print('Something new!')
-            self.table = get_arp_table()
-            self.updateTableWidget(self.table)
-            self.history = self.update_history_dic(self.table, self.history)
-            self.updateHistoryWidget(self.history)
-            # refresh BUTTON only if something happened
-            if is_gw_static():
-                self.pushButton_Protect.setText('Protected. Click to remove statiс record')
-                self.pushButton_Protect.setIcon(QtGui.QIcon(icon_protected))
-                self.groupBox_gw.setStyleSheet('color: rgb(0, 100, 0);')
-            else:
-                self.pushButton_Protect.setText('Unprotected. Click to protect!')
-                self.pushButton_Protect.setIcon(QtGui.QIcon(icon_alert))
-                self.groupBox_gw.setStyleSheet('color: rgb(175, 39, 29);')
+            self.pushButton_Protect.setText('Unprotected. Click to protect!')
+            self.pushButton_Protect.setIcon(QtGui.QIcon(icon_alert))
+            self.groupBox_gw.setStyleSheet('color: rgb(175, 39, 29);')
 
 
     def show(self):
         screen_center = lambda x: QApplication.desktop().screen().rect().center()- x.rect().center()
-        #self.move(self.screen_center(self))
         self.move(screen_center(self))
         self.activateWindow()
         super(BarpMainWindow, self).show()
