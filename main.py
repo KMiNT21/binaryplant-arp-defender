@@ -269,61 +269,20 @@ class BarpMainWindow(QMainWindow):
         self.activateWindow()
         super(BarpMainWindow, self).show()
 
-
-#    def changeEvent(self, event):
-#        print(event.type())
-#        if event.type() == QtCore.QEvent.WindowStateChange:
-#            print(event.type())
-
     def closeEvent(self, event):
-        #print('closeEvent')
         event.ignore()
         self.hide()
-        #self.tray.showMessage('Running', 'Running in the background.')
 
-        # do stuff
-        #if can_exit:
-        #    event.accept() # let the window close
-        #else:
-            #event.ignore()
     def localWndProc(self, hWnd, msg, wParam, lParam):
-        #if msg in self.msgDict:
-        #    if self.msgDict[msg](wParam, lParam) == False:
-        #        return
-        #if msg == win32con.WM_DESTROY:
-        #    self.unhookWndProc()
-        #print('.', end='', flush=True)
-
         if msg == win32con.WM_POWERBROADCAST and wParam == win32con.PBT_APMRESUMESUSPEND:
-            if QSettings(company_name, product_name).value(settings_auto_protect, type=bool):
+            if QSettings(company_name, product_name).value(settings_auto_protect, type=bool) and not is_gw_static:
                 QTimer.singleShot(5000, set_gw_static)
-
-
-        if msg == win32con.WM_POWERBROADCAST:
-            print('WM_POWERBROADCAST', flush=True)
-            if wParam == win32con.PBT_APMRESUMESUSPEND:
-                print('PBT_APMRESUMESUSPEND', flush=True)
-                need_to_reapply = True
-
         return win32gui.CallWindowProc(self.oldWndProc, hWnd, msg, wParam, lParam)
 
 
 if __name__ == '__main__':
-    #print(get_default_gateway_interface_name().encode('utf-8'))
-    #exit()
     app = BarpApp(sys.argv)
     app.showTrayMenu()
-
     if not QSettings(company_name, product_name).value(settings_start_minimized, type=bool):
         app.showSettings()
-
-    #table = get_arp_table()
-    #pprint(table)
-
-
-    #gw = get_default_gateway()
-    #print(gw)
-    #exit()
-
-
     sys.exit(app.exec_())
