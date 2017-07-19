@@ -4,11 +4,12 @@ This tool just helps you to keep apr-record of your default gateway static.
 BarpDef monitors arp-cache and logs any news records inside table.
 It runs only on Windows 7/8/10 for now.
 
-## How to install for Windows as exe-file
-You can just download prebuilded MSI installation file at binaryplant.com/arp-defender/
-Run .msi file and install it to some directory. Start.
+[//]: #   (## How to install for Windows as exe-file)
+[//]: #   (You can just download prebuilded MSI installation file at binaryplant.com/arp-defender/)
+[//]: #   (Run .msi file and install it to some directory. Start.)
+[//]: #   (That's all!)
 
-That's all!
+Screenshot:
 
 ![ARP Defender](http://binaryplant.com/media/screenshot-arp-defender.png)
 ------------------------------------------------------------------------------------
