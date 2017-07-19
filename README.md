@@ -30,7 +30,7 @@ Run file:
 ```
 
 
-#### Building exe from source
+#### Building exe from sources
 You need cx_Freeze lib.
 ```
 > pip install cx_Freeze
@@ -45,5 +45,5 @@ For folder with all filese:
 
 Generating solid MSI installation file:
 ```
-$ python.exe setup.py bdist_msi
+> python.exe setup.py bdist_msi
 ```
