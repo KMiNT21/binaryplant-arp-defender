@@ -10,6 +10,7 @@ Run .msi file and install it to some directory. Start.
 
 That's all!
 
+![ARP Defender](http://binaryplant.com/media/screenshot-arp-defender.png)
 ------------------------------------------------------------------------------------
 
 
@@ -25,7 +26,7 @@ This software written on Python wih PyQT framework. So you need these for run.
 
 Run file:
 ```
-> python main.py
+> python barpdef.py
 ```
 
 
