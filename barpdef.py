@@ -275,4 +275,5 @@ if __name__ == '__main__':
     if QSettings(company_name, product_name).value(settings_auto_protect, type=bool) and not is_gw_static():
         QTimer.singleShot(5000, set_gw_static)
         QTimer.singleShot(8000, app.settings_window.onTimer)
+    # Start 
     sys.exit(app.exec_())
