@@ -38,10 +38,7 @@ def get_arp_table():
     find_mac_addr = lambda x: re.findall(str_regex_mac_addr, x)[0]
     find_flag_ip_multicast  = lambda x: bool(re.search(str_regex_ip_multicast, x))
     find_flag_static = lambda x: bool(re.search(str_regex_static_flag, x))
-    #parse_output_line = lambda x: [find_ip_addr(x), find_flag_ip_multicast(x), find_mac_addr(x), find_flag_static(x)]
     parse_output_line = lambda x: [find_flag_static(x), find_ip_addr(x), find_mac_addr(x), find_flag_ip_multicast(x)]
-    #table = list(filter(None, list(map(parse_output_line, res.splitlines()))))
-    #table = list(map(parse_output_line, res.splitlines()))
     table = [parse_output_line(x) for x in res.splitlines()]
     filter_good = lambda x: x[1] and x[2] and not x[3]
     table = list(filter(filter_good, table))
