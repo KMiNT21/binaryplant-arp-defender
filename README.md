@@ -18,10 +18,10 @@ Screenshot:
 ## How to run as python script with GUI 
 This software written on Python wih PyQT framework. So you need these for run.
 1) [Python](https://www.python.org/downloads/) v3 - download and install it.
-2) Requirements ([PyQt5](http://pyqt.sourceforge.net/Docs/PyQt5/installation.html) and  pypiwin32) by command:
+2) Requirements ([PyQt5](http://pyqt.sourceforge.net/Docs/PyQt5/installation.html) and  pypiwin32) by commands:
 ```
-pip install pyqt5
-pip install pypiwin32
+> pip install pyqt5
+> pip install pypiwin32
 ```
 
 3) Sources. Download as zip or git clone from https://github.com/KMiNT21/bintaryplant-arp-defender/
