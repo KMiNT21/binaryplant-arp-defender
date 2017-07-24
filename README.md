@@ -20,7 +20,8 @@ This software written on Python wih PyQT framework. So you need these for run.
 1) [Python](https://www.python.org/downloads/) v3 - download and install it.
 2) [PyQt5](http://pyqt.sourceforge.net/Docs/PyQt5/installation.html) by command:
 ```
-> pip install pyqt5
+pip install pyqt5
+pip install pypiwin32
 ```
 
 3) Sources. Download as zip or git clone from https://github.com/KMiNT21/bintaryplant-arp-defender/
