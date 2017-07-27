@@ -28,7 +28,7 @@ This software written on Python wih PyQT framework. So you need these for run.
 
 Run file:
 ```
-> python barpdef.py
+> python barpdef.pyw
 ```
 
 
