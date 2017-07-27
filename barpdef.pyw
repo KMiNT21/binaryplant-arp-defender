@@ -58,15 +58,18 @@ def get_default_gateway_ip():
     return gateway
 
 def get_default_gateway_interface_name():
-    res = subprocess.check_output('ipconfig', shell=True).decode('cp866')
-    str_regex_interface_name = 'Ethernet adapter ([^:]*):|$'
-    str_regex_default_gw = 'Default Gateway[^\d]+(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})|$'
-    for line in res.splitlines():
-        if re.findall(str_regex_interface_name, line)[0]:
-            last_interface_name = re.findall(str_regex_interface_name, line)[0]
-        if re.findall(str_regex_default_gw, line)[0]:
-            #print(last_interface_name)
-            return last_interface_name
+    try:
+        res = subprocess.check_output('ipconfig', shell=True).decode('cp866')
+        str_regex_interface_name = ' adapter ([^:]*):|$'
+        str_regex_default_gw = 'Default Gateway[^\d]+(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})|$'
+        for line in res.splitlines():
+            if re.findall(str_regex_interface_name, line)[0]:
+                last_interface_name = re.findall(str_regex_interface_name, line)[0]
+            if re.findall(str_regex_default_gw, line)[0]:
+                #print(last_interface_name)
+                return last_interface_name
+    except:
+        pass
     return '' # if error
 
 
@@ -82,6 +85,8 @@ is_gw_static = lambda : find_ip_record(get_default_gateway_ip(), get_arp_table()
 
 
 def add_static_record(ip, mac, if_name):
+    if not ip or not mac or not if_name: # not
+        return
     # 1) Command:
     #     arp.exe -s IP MAC with IF_ADDR  doesn't work (I have no idea why)
     #     so, we have to use netsh.exe and must find network interface name (i.e. in 'ipconfig' output)
@@ -99,6 +104,7 @@ set_gw_static = lambda : add_static_record(get_default_gateway_ip(), find_gw_mac
 def remove_static_record(ip):
     cmd = "Powershell Start-Process -WindowStyle hidden 'arp.exe' -ArgumentList '-d %s' -Verb runAs" % ip
     subprocess.Popen(cmd)
+
 set_gw_dynamic = lambda : remove_static_record(get_default_gateway_ip())
 
 
@@ -140,16 +146,10 @@ class BarpMainWindow(QMainWindow):
         timer = QTimer(self)
         timer.timeout.connect(self.onTimer)
         timer.start(1000 * timer_in_sec)
-        self.label_gwIp.setText(get_default_gateway_ip())
-        self.label_gwIp.setToolTip(get_default_gateway_interface_name())
-        self.label_gwMac.setText(find_gw_mac())
-        self.label_gwMac.setToolTip(get_default_gateway_interface_name())
-        try: self.lineEdit_Timer.setText(str(timer_in_sec)) #TODO: un'try' when decided about lineEdit_Timer
-        except: pass
+        self.lineEdit_Timer.setText(str(timer_in_sec))
         self.table = []
         self.updateTableWidget(self.table)
         self.buttonClearHistory()
-        self.pushButton_Protect.setEnabled(bool(find_gw_mac()))
         # connect buttons
         self.pushButton_Protect.clicked.connect(self.toggleProtectionState)
         self.buttonBox.accepted.connect(self.accept)
@@ -205,7 +205,6 @@ class BarpMainWindow(QMainWindow):
             wt.setItem(row_count, 0, formatted_cell(QTableWidgetItem(('s' if flag_static  else ''))))
             wt.setItem(row_count, 1, formatted_cell(QTableWidgetItem(ip)))
             wt.setItem(row_count, 2, formatted_cell(QTableWidgetItem(mac)))
-
         wt.resizeColumnsToContents()
         wt.horizontalHeader().setStretchLastSection(True)
 
@@ -229,20 +228,32 @@ class BarpMainWindow(QMainWindow):
     def onTimer(self):
         if self.table == get_arp_table():
             return
-        # Something new found in ARP Table
+        # Something new found in ARP Table (or first start)
         self.table = get_arp_table()
+        self.label_gwIp.setText(get_default_gateway_ip())
+        self.label_gwIp.setToolTip(get_default_gateway_interface_name())
+        self.label_gwMac.setText(find_gw_mac())
+        self.label_gwMac.setToolTip(get_default_gateway_interface_name())
+        if find_gw_mac():
+            self.pushButton_Protect.setEnabled(True)
+            if is_gw_static():
+                self.pushButton_Protect.setText('Protected. Click to remove statiс record')
+                self.pushButton_Protect.setIcon(QtGui.QIcon(icon_protected))
+                self.groupBox_gw.setStyleSheet('color: rgb(0, 100, 0);')
+            else:
+                self.pushButton_Protect.setText('Unprotected. Click to protect!')
+                self.pushButton_Protect.setIcon(QtGui.QIcon(icon_alert))
+                self.groupBox_gw.setStyleSheet('color: rgb(175, 39, 29);')
+                if QSettings(company_name, product_name).value(settings_auto_protect, type=bool):
+                    set_gw_static()
+                    QTimer.singleShot(5000, self.onTimer)
+        else: # if gateway MAC not found
+            self.pushButton_Protect.setEnabled(False)
+            self.pushButton_Protect.setText('Can not find gateway MAC address')
+            self.pushButton_Protect.setIcon(QtGui.QIcon()) # remove icon
         self.updateTableWidget(self.table)
         self.history = self.update_history_dic(self.table, self.history)
         self.updateHistoryWidget(self.history)
-        # refresh BUTTON
-        if is_gw_static():
-            self.pushButton_Protect.setText('Protected. Click to remove statiс record')
-            self.pushButton_Protect.setIcon(QtGui.QIcon(icon_protected))
-            self.groupBox_gw.setStyleSheet('color: rgb(0, 100, 0);')
-        else:
-            self.pushButton_Protect.setText('Unprotected. Click to protect!')
-            self.pushButton_Protect.setIcon(QtGui.QIcon(icon_alert))
-            self.groupBox_gw.setStyleSheet('color: rgb(175, 39, 29);')
 
 
     def show(self):
@@ -257,7 +268,7 @@ class BarpMainWindow(QMainWindow):
 
     def localWndProc(self, hWnd, msg, wParam, lParam):
         if msg == win32con.WM_POWERBROADCAST and wParam == win32con.PBT_APMRESUMESUSPEND:
-            if QSettings(company_name, product_name).value(settings_auto_protect, type=bool) and not is_gw_static:
+            if QSettings(company_name, product_name).value(settings_auto_protect, type=bool) and not is_gw_static():
                 QTimer.singleShot(5000, set_gw_static)
         return win32gui.CallWindowProc(self.oldWndProc, hWnd, msg, wParam, lParam)
 

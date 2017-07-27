@@ -343,12 +343,12 @@ alternate-background-color: rgb(71, 35, 255);</string>
       <rect>
        <x>10</x>
        <y>76</y>
-       <width>231</width>
+       <width>301</width>
        <height>17</height>
       </rect>
      </property>
      <property name="text">
-      <string>Autoprotect at system start and wake up</string>
+      <string>Autoprotect (on every timer event)</string>
      </property>
     </widget>
     <widget class="QCheckBox" name="checkBox_StartMinimized">
@@ -453,8 +453,6 @@ alternate-background-color: rgb(71, 35, 255);</string>
    </widget>
   </widget>
  </widget>
- <resources>
-  <include location="lock.bmp"/>
- </resources>
+ <resources/>
  <connections/>
 </ui>
