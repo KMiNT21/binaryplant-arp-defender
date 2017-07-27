@@ -49,3 +49,9 @@ Generating solid MSI installation file:
 ```
 > python.exe setup.py bdist_msi
 ```
+
+---------------------------------------
+
+If you need tool like arp-watch but for Windows to monitor and log all arp-events
+(new activity/station, flip flop, mac address changing) based on network sniffing with WinPCAP,
+you can use [BinaryPlant ARP Monitor](http://binaryplant.com/arp-monitor/)
