@@ -8,6 +8,8 @@ import win32con
 import win32event
 import pywintypes
 import win32api
+import winerror
+import inspect
 
 from PyQt5 import QtGui, QtCore, uic
 from PyQt5.QtWidgets import QApplication, QSystemTrayIcon, QMenu, QMainWindow, QTableWidgetItem, QTreeWidgetItem
@@ -22,7 +24,7 @@ SETTINGS_START_MINIMIZED = 'settings_start_minimized'
 SETTINGS_AUTO_PROTECT = 'settings_auto_protect'
 TIMER_IN_SEC = 60
 
-APP_DIR = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.realpath(__file__))
+APP_DIR = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.realpath(os.path.abspath(os.path.split(inspect.getfile( inspect.currentframe() ))[0]))
 APP_LOGO_ICON = os.path.join(APP_DIR, 'res', 'logo.ico')
 ICON_PROTECTED = os.path.join(APP_DIR, 'res', 'protected.ico')
 ICON_ALERT = os.path.join(APP_DIR, 'res', 'alert.png')
@@ -283,7 +285,7 @@ class BarpMainWindow(QMainWindow):
 if __name__ == '__main__':
     # only for Windows - do not allow second instance
     hMutex = win32event.CreateMutex(None, pywintypes.TRUE, PRODUCT_NAME)
-    if win32api.GetLastError() == 183:  # ERROR_ALREADY_EXISTS = 183
+    if win32api.GetLastError() == winerror.ERROR_ALREADY_EXISTS:
         sys.exit()
     app = BarpApp(sys.argv)
     app.show_tray_menu()
