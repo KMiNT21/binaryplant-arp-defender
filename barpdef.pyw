@@ -11,7 +11,7 @@ import win32api
 
 from PyQt5 import QtGui, QtCore, uic
 from PyQt5.QtWidgets import QApplication, QSystemTrayIcon, QMenu, QMainWindow, QTableWidgetItem, QTreeWidgetItem
-from PyQt5.QtCore import QSettings, QTimer, QMutex
+from PyQt5.QtCore import QSettings, QTimer
 
 
 PRODUCT_NAME = 'ARP Defender'
@@ -23,17 +23,14 @@ SETTINGS_AUTO_PROTECT = 'settings_auto_protect'
 TIMER_IN_SEC = 60
 
 APP_DIR = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.realpath(__file__))
-APP_LOGO_ICON = os.path.join(APP_DIR, 'res' , 'logo.ico')
-ICON_PROTECTED = os.path.join(APP_DIR, 'res' , 'protected.ico')
-ICON_ALERT = os.path.join(APP_DIR, 'res' , 'alert.png')
+APP_LOGO_ICON = os.path.join(APP_DIR, 'res', 'logo.ico')
+ICON_PROTECTED = os.path.join(APP_DIR, 'res', 'protected.ico')
+ICON_ALERT = os.path.join(APP_DIR, 'res', 'alert.png')
 UI_FILENAME = os.path.join(APP_DIR, 'barp-win.ui')
 
 
-
-
-
 def get_arp_table():  # INFO: get_arp_table() = list of records like [boolStaticFlag, 'IP', 'MAC']
-    res = subprocess.check_output('arp -a', shell=True).decode("utf-8") #.rstrip())
+    res = subprocess.check_output('arp -a', shell=True).decode("utf-8")
     STR_REGEX_IP = '(?:[0-9]{1,3}\.){3}[0-9]{1,3}|$'
     STR_REGEX_IP_MULTICAST = '2(?:2[4-9]|3\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d?|0)){3}'
     STR_REGEX_MAC_ADDR = '([0-9A-Fa-f]{2}[:-][0-9A-Fa-f]{2}[:-][0-9A-Fa-f]{2}[:-][0-9A-Fa-f]{2}[:-][0-9A-Fa-f]{2}[:-][0-9A-Fa-f]{2})|$'
@@ -47,13 +44,13 @@ def get_arp_table():  # INFO: get_arp_table() = list of records like [boolStatic
     filter_good = lambda x: x[1] and x[2] and not x[3]
     table = list(filter(filter_good, table))
     # remove useless column 'multicast' and skip broadcast mac-record
-    table = [[rec[0], rec[1], rec[2]] for rec in table if rec[2].lower().replace(':','-') != 'ff-ff-ff-ff-ff-ff']
-    return table # [boolStaticFlag, IP, MAC]
+    table = [[rec[0], rec[1], rec[2]] for rec in table if rec[2].lower().replace(':', '-') != 'ff-ff-ff-ff-ff-ff']
+    return table  # [boolStaticFlag, IP, MAC]
     # example:[  [False, '192.168.76.254', '00-50-56-e2-8c-19', False], .....]
 
 
 def get_default_gateway_ip():
-    res = subprocess.check_output('ipconfig', shell=True, universal_newlines=True) # alter: "netsh interface ipv4 show config"
+    res = subprocess.check_output('ipconfig', shell=True, universal_newlines=True)  # alter: "netsh interface ipv4 show config"
     STR_REGEX_DEFAULT_GW = 'Default Gateway[^\d]+(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})|$'
     find_default_gws = lambda x: re.findall(STR_REGEX_DEFAULT_GW, x)[0]
     gateway_entries = map(find_default_gws, res.splitlines())
@@ -69,7 +66,7 @@ def get_default_gateway_interface_name():
             if re.findall(STR_REGEX_INTERFACE_NAME, line)[0]:
                 last_interface_name = re.findall(STR_REGEX_INTERFACE_NAME, line)[0]
             if re.findall(STR_REGEX_DEFAULT_GW, line)[0]:
-                #print(last_interface_name)
+                # print(last_interface_name)
                 return last_interface_name
     except:
         pass
@@ -86,7 +83,7 @@ find_gw_mac   = lambda: find_ip_record(get_default_gateway_ip(), get_arp_table()
 is_gw_static = lambda: find_ip_record(get_default_gateway_ip(), get_arp_table())[0]
 
 def add_static_record(ip, mac, if_name):
-    if not ip or not mac or not if_name: # not
+    if not ip or not mac or not if_name:
         return
     # 1) Command:
     #     arp.exe -s IP MAC with IF_ADDR  doesn't work (I have no idea why)
@@ -126,7 +123,7 @@ class BarpApp(QApplication):
         self.settings_window = BarpMainWindow()
         self.setWindowIcon(QtGui.QIcon(APP_LOGO_ICON))
         self.myappid = '.'.join([COMPANY_NAME, PRODUCT_NAME])
-        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(self.myappid) # to have own taskbar window
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(self.myappid)  # to have own taskbar window
 
     def quit(self):
         self.tray.hide()
@@ -151,7 +148,7 @@ class BarpMainWindow(QMainWindow):
         self.ui_file = UI_FILENAME
         uic.loadUi(self.ui_file, self)
         timer = QTimer(self)
-        timer.timeout.connect(self.onTimer)
+        timer.timeout.connect(self.on_timer)
         timer.start(1000 * TIMER_IN_SEC)
         self.lineEdit_Timer.setText(str(TIMER_IN_SEC))
         self.table = []
@@ -162,11 +159,11 @@ class BarpMainWindow(QMainWindow):
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reload_checkboxes)
         self.pushButton_Exit.clicked.connect(QtCore.QCoreApplication.instance().quit)
-        self.pushButton_Update.clicked.connect(self.onTimer)
+        self.pushButton_Update.clicked.connect(self.on_timer)
         self.pushButton_ClearHistory.clicked.connect(self.button_clear_history)
         # first init checkboxes from setting
         self.reload_checkboxes()
-        self.onTimer()  # fist init table and interface widgets
+        self.on_timer()  # fist init table and interface widgets
         # hook WndProc for receiving wake-up event
         self.oldWndProc = win32gui.SetWindowLong(self.winId(), win32con.GWL_WNDPROC, self.localWndProc)
 
@@ -225,13 +222,13 @@ class BarpMainWindow(QMainWindow):
 
     def toggle_protection_state(self):
         set_gw_dynamic() if is_gw_static() else set_gw_static()
-        QTimer.singleShot(1000, self.onTimer)  # to boost interface
-        QTimer.singleShot(2000, self.onTimer)  # to boost interface
-        QTimer.singleShot(3000, self.onTimer)  # to boost interface
-        QTimer.singleShot(5000, self.onTimer)  # to boost interface
+        QTimer.singleShot(1000, self.on_timer)  # to boost interface
+        QTimer.singleShot(2000, self.on_timer)  # to boost interface
+        QTimer.singleShot(3000, self.on_timer)  # to boost interface
+        QTimer.singleShot(5000, self.on_timer)  # to boost interface
         return
 
-    def onTimer(self):
+    def on_timer(self):
         if self.table == get_arp_table():
             return
         # Something new found in ARP Table (or first start)
@@ -252,7 +249,7 @@ class BarpMainWindow(QMainWindow):
                 self.groupBox_gw.setStyleSheet('color: rgb(175, 39, 29);')
                 if QSettings(COMPANY_NAME, PRODUCT_NAME).value(SETTINGS_AUTO_PROTECT, type=bool):
                     set_gw_static()
-                    QTimer.singleShot(5000, self.onTimer)
+                    QTimer.singleShot(5000, self.on_timer)
 
         else:  # if gateway MAC not found
             self.pushButton_Protect.setEnabled(False)
@@ -290,6 +287,6 @@ if __name__ == '__main__':
         app.show_settings()
     if QSettings(COMPANY_NAME, PRODUCT_NAME).value(SETTINGS_AUTO_PROTECT, type=bool) and not is_gw_static():
         QTimer.singleShot(5000, set_gw_static)
-        QTimer.singleShot(8000, app.settings_window.onTimer)
+        QTimer.singleShot(8000, app.settings_window.on_timer)
 
     sys.exit(app.exec_())
