@@ -3,19 +3,16 @@ import os
 import subprocess
 import re
 import ctypes
+import win32gui
+import win32con
+import win32event
+import pywintypes
+import win32api
+
 from PyQt5 import QtGui, QtCore, uic
 from PyQt5.QtWidgets import QApplication, QSystemTrayIcon, QMenu, QMainWindow, QTableWidgetItem, QTreeWidgetItem
 from PyQt5.QtCore import QSettings, QTimer, QMutex
-import win32gui
-import win32con
 
-
-APP_DIR = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.realpath(__file__))
-make_full_path = lambda x: os.path.join(APP_DIR, x)
-APP_LOGO_ICON = make_full_path('res\\logo.ico')
-ICON_PROTECTED = make_full_path('res\\protected.ico')
-ICON_ALERT = make_full_path('res\\alert.png')
-UI_FILENAME = make_full_path('barp-win.ui')
 
 PRODUCT_NAME = 'ARP Defender'
 COMPANY_NAME = 'BinaryPlant'
@@ -24,6 +21,14 @@ HKEY = "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run"
 SETTINGS_START_MINIMIZED = 'settings_start_minimized'
 SETTINGS_AUTO_PROTECT = 'settings_auto_protect'
 TIMER_IN_SEC = 60
+
+APP_DIR = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.realpath(__file__))
+APP_LOGO_ICON = os.path.join(APP_DIR, 'res' , 'logo.ico')
+ICON_PROTECTED = os.path.join(APP_DIR, 'res' , 'protected.ico')
+ICON_ALERT = os.path.join(APP_DIR, 'res' , 'alert.png')
+UI_FILENAME = os.path.join(APP_DIR, 'barp-win.ui')
+
+
 
 
 
@@ -77,10 +82,8 @@ def find_ip_record(ip, table):
     default_record = [False, ip, '']
     return next(record, default_record)
 
-
 find_gw_mac   = lambda: find_ip_record(get_default_gateway_ip(), get_arp_table())[2]
 is_gw_static = lambda: find_ip_record(get_default_gateway_ip(), get_arp_table())[0]
-
 
 def add_static_record(ip, mac, if_name):
     if not ip or not mac or not if_name: # not
@@ -99,7 +102,6 @@ def add_static_record(ip, mac, if_name):
 
 set_gw_static = lambda: add_static_record(get_default_gateway_ip(), find_gw_mac(), get_default_gateway_interface_name())
 
-
 def remove_static_record(ip):
     cmd = "Powershell Start-Process -WindowStyle hidden 'arp.exe' -ArgumentList '-d %s' -Verb runAs" % ip
     subprocess.Popen(cmd)
@@ -115,7 +117,7 @@ class BarpApp(QApplication):
         self.tray = QSystemTrayIcon()
         self.tray.activated.connect(self.tray_clicks)
         self.menu = QMenu('Menu')
-        self.menu.addAction('S&how Main Window', self.showSettings)
+        self.menu.addAction('S&how Main Window', self.show_settings)
         self.menu.addSeparator()
         self.menu.addAction('E&xit', self.quit)
         self.tray.setIcon(QtGui.QIcon(APP_LOGO_ICON))
@@ -132,12 +134,12 @@ class BarpApp(QApplication):
 
     def tray_clicks(self, reason):
         if reason == QSystemTrayIcon.DoubleClick:
-            self.showSettings()
+            self.show_settings()
 
-    def showTrayMenu(self):
+    def show_tray_menu(self):
         self.tray.show()
 
-    def showSettings(self):
+    def show_settings(self):
         self.settings_window.show()
 
 
@@ -153,15 +155,15 @@ class BarpMainWindow(QMainWindow):
         timer.start(1000 * TIMER_IN_SEC)
         self.lineEdit_Timer.setText(str(TIMER_IN_SEC))
         self.table = []
-        self.update_TableWidget(self.table)
-        self.button_ClearHistory()
+        self.update_table_widget(self.table)
+        self.button_clear_history()
         # connect buttons
-        self.pushButton_Protect.clicked.connect(self.toggle_ProtectionState)
+        self.pushButton_Protect.clicked.connect(self.toggle_protection_state)
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reload_checkboxes)
         self.pushButton_Exit.clicked.connect(QtCore.QCoreApplication.instance().quit)
         self.pushButton_Update.clicked.connect(self.onTimer)
-        self.pushButton_ClearHistory.clicked.connect(self.button_ClearHistory)
+        self.pushButton_ClearHistory.clicked.connect(self.button_clear_history)
         # first init checkboxes from setting
         self.reload_checkboxes()
         self.onTimer()  # fist init table and interface widgets
@@ -184,7 +186,7 @@ class BarpMainWindow(QMainWindow):
         self.hide()
 
     def update_history_dic(self, table, prev_history):
-        history = prev_history.copy()  # just to make function "clean"
+        history = prev_history.copy()  # to make function "clean"
         for flag_static, ip, mac in table:
             if ip not in history.keys():
                 # print('New IP')
@@ -194,11 +196,11 @@ class BarpMainWindow(QMainWindow):
                 history[ip].append(mac)
         return history
 
-    def button_ClearHistory(self):
+    def button_clear_history(self):
         self.history = self.update_history_dic(self.table, {})
-        self.update_HistoryWidget(self.history)
+        self.update_history_widget(self.history)
 
-    def update_TableWidget(self, arp_table):
+    def update_table_widget(self, arp_table):
         wt = self.tableWidget_Table
         wt.clear()
         wt.setRowCount(0)
@@ -207,13 +209,13 @@ class BarpMainWindow(QMainWindow):
         for flag_static, ip, mac in arp_table:
             row_count = wt.rowCount()
             wt.insertRow(row_count)
-            wt.setItem(row_count, 0, formatted_cell(QTableWidgetItem(('s' if flag_static  else ''))))
+            wt.setItem(row_count, 0, formatted_cell(QTableWidgetItem(('s' if flag_static else ''))))
             wt.setItem(row_count, 1, formatted_cell(QTableWidgetItem(ip)))
             wt.setItem(row_count, 2, formatted_cell(QTableWidgetItem(mac)))
         wt.resizeColumnsToContents()
         wt.horizontalHeader().setStretchLastSection(True)
 
-    def update_HistoryWidget(self, history_dic):
+    def update_history_widget(self, history_dic):
         self.treeWidget_History.clear()
         for ip in history_dic:
             ip_line = QTreeWidgetItem([ip])
@@ -221,14 +223,13 @@ class BarpMainWindow(QMainWindow):
             self.treeWidget_History.addTopLevelItem(ip_line)
             ip_line.setExpanded(len(history_dic[ip]) > 1)
 
-    def toggle_ProtectionState(self):
+    def toggle_protection_state(self):
         set_gw_dynamic() if is_gw_static() else set_gw_static()
         QTimer.singleShot(1000, self.onTimer)  # to boost interface
         QTimer.singleShot(2000, self.onTimer)  # to boost interface
         QTimer.singleShot(3000, self.onTimer)  # to boost interface
         QTimer.singleShot(5000, self.onTimer)  # to boost interface
         return
-
 
     def onTimer(self):
         if self.table == get_arp_table():
@@ -252,17 +253,17 @@ class BarpMainWindow(QMainWindow):
                 if QSettings(COMPANY_NAME, PRODUCT_NAME).value(SETTINGS_AUTO_PROTECT, type=bool):
                     set_gw_static()
                     QTimer.singleShot(5000, self.onTimer)
+
         else:  # if gateway MAC not found
             self.pushButton_Protect.setEnabled(False)
             self.pushButton_Protect.setText('Can not find gateway MAC address')
-            self.pushButton_Protect.setIcon(QtGui.QIcon()) # remove icon
-        self.update_TableWidget(self.table)
+            self.pushButton_Protect.setIcon(QtGui.QIcon())  # remove icon
+        self.update_table_widget(self.table)
         self.history = self.update_history_dic(self.table, self.history)
-        self.update_HistoryWidget(self.history)
-
+        self.update_history_widget(self.history)
 
     def show(self):
-        screen_center = lambda x: QApplication.desktop().screen().rect().center()- x.rect().center()
+        screen_center = lambda x: QApplication.desktop().screen().rect().center() - x.rect().center()
         self.move(screen_center(self))
         self.activateWindow()
         super(BarpMainWindow, self).show()
@@ -271,7 +272,7 @@ class BarpMainWindow(QMainWindow):
         event.ignore()
         self.hide()
 
-    def localWndProc(self, hWnd, msg, wParam, lParam):
+    def localWndProc(self, hWnd, msg, wParam, lParam):  # win32 API
         if msg == win32con.WM_POWERBROADCAST and wParam == win32con.PBT_APMRESUMESUSPEND:
             if QSettings(COMPANY_NAME, PRODUCT_NAME).value(SETTINGS_AUTO_PROTECT, type=bool) and not is_gw_static():
                 QTimer.singleShot(5000, set_gw_static)
@@ -280,14 +281,13 @@ class BarpMainWindow(QMainWindow):
 
 if __name__ == '__main__':
     # only for Windows - do not allow second instance
-    import win32event, pywintypes, win32api
     hMutex = win32event.CreateMutex(None, pywintypes.TRUE, PRODUCT_NAME)
     if (win32api.GetLastError() == 183):  # ERROR_ALREADY_EXISTS = 183
         sys.exit()
     app = BarpApp(sys.argv)
-    app.showTrayMenu()
+    app.show_tray_menu()
     if not QSettings(COMPANY_NAME, PRODUCT_NAME).value(SETTINGS_START_MINIMIZED, type=bool):
-        app.showSettings()
+        app.show_settings()
     if QSettings(COMPANY_NAME, PRODUCT_NAME).value(SETTINGS_AUTO_PROTECT, type=bool) and not is_gw_static():
         QTimer.singleShot(5000, set_gw_static)
         QTimer.singleShot(8000, app.settings_window.onTimer)
