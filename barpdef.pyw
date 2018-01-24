@@ -31,14 +31,14 @@ UI_FILENAME = os.path.join(APP_DIR, 'barp-win.ui')
 
 def get_arp_table():  # INFO: get_arp_table() = list of records like [boolStaticFlag, 'IP', 'MAC']
     res = subprocess.check_output('arp -a', shell=True).decode("utf-8")
-    STR_REGEX_IP = '(?:[0-9]{1,3}\.){3}[0-9]{1,3}|$'
-    STR_REGEX_IP_MULTICAST = '2(?:2[4-9]|3\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d?|0)){3}'
-    STR_REGEX_MAC_ADDR = '([0-9A-Fa-f]{2}[:-][0-9A-Fa-f]{2}[:-][0-9A-Fa-f]{2}[:-][0-9A-Fa-f]{2}[:-][0-9A-Fa-f]{2}[:-][0-9A-Fa-f]{2})|$'
-    STR_REGEX_STATIC_FLAG = 'static'
-    find_ip_addr = lambda x: re.findall(STR_REGEX_IP, x)[0]
-    find_mac_addr = lambda x: re.findall(STR_REGEX_MAC_ADDR, x)[0]
-    find_flag_ip_multicast  = lambda x: bool(re.search(STR_REGEX_IP_MULTICAST, x))
-    find_flag_static = lambda x: bool(re.search(STR_REGEX_STATIC_FLAG, x))
+    str_regex_ip = '(?:[0-9]{1,3}\.){3}[0-9]{1,3}|$'
+    str_regex_ip_multicast = '2(?:2[4-9]|3\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d?|0)){3}'
+    str_regex_mac_addr = '([0-9A-Fa-f]{2}[:-][0-9A-Fa-f]{2}[:-][0-9A-Fa-f]{2}[:-][0-9A-Fa-f]{2}[:-][0-9A-Fa-f]{2}[:-][0-9A-Fa-f]{2})|$'
+    str_regex_static_flag = 'static'
+    find_ip_addr = lambda x: re.findall(str_regex_ip, x)[0]
+    find_mac_addr = lambda x: re.findall(str_regex_mac_addr, x)[0]
+    find_flag_ip_multicast = lambda x: bool(re.search(str_regex_ip_multicast, x))
+    find_flag_static = lambda x: bool(re.search(str_regex_static_flag, x))
     parse_output_line = lambda x: [find_flag_static(x), find_ip_addr(x), find_mac_addr(x), find_flag_ip_multicast(x)]
     table = [parse_output_line(x) for x in res.splitlines()]
     filter_good = lambda x: x[1] and x[2] and not x[3]
@@ -51,26 +51,28 @@ def get_arp_table():  # INFO: get_arp_table() = list of records like [boolStatic
 
 def get_default_gateway_ip():
     res = subprocess.check_output('ipconfig', shell=True, universal_newlines=True)  # alter: "netsh interface ipv4 show config"
-    STR_REGEX_DEFAULT_GW = 'Default Gateway[^\d]+(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})|$'
-    find_default_gws = lambda x: re.findall(STR_REGEX_DEFAULT_GW, x)[0]
+    str_regex_default_gw = 'Default Gateway[^\d]+(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})|$'
+    find_default_gws = lambda x: re.findall(str_regex_default_gw, x)[0]
     gateway_entries = map(find_default_gws, res.splitlines())
     gateway = next(filter(None, gateway_entries), '')
     return gateway
 
+
 def get_default_gateway_interface_name():
     try:
         res = subprocess.check_output('ipconfig', shell=True).decode('cp866')
-        STR_REGEX_INTERFACE_NAME = ' adapter ([^:]*):|$'
-        STR_REGEX_DEFAULT_GW = 'Default Gateway[^\d]+(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})|$'
+        str_regex_interface_name = ' adapter ([^:]*):|$'
+        str_regex_default_gw = 'Default Gateway[^\d]+(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})|$'
+        last_interface_name = ''
         for line in res.splitlines():
-            if re.findall(STR_REGEX_INTERFACE_NAME, line)[0]:
-                last_interface_name = re.findall(STR_REGEX_INTERFACE_NAME, line)[0]
-            if re.findall(STR_REGEX_DEFAULT_GW, line)[0]:
+            if re.findall(str_regex_interface_name, line)[0]:
+                last_interface_name = re.findall(str_regex_interface_name, line)[0]
+            if re.findall(str_regex_default_gw, line)[0]:
                 # print(last_interface_name)
                 return last_interface_name
     except:
         pass
-    return '' # if error
+    return ''  # if error
 
 
 def find_ip_record(ip, table):
@@ -79,8 +81,9 @@ def find_ip_record(ip, table):
     default_record = [False, ip, '']
     return next(record, default_record)
 
-find_gw_mac   = lambda: find_ip_record(get_default_gateway_ip(), get_arp_table())[2]
+find_gw_mac = lambda: find_ip_record(get_default_gateway_ip(), get_arp_table())[2]
 is_gw_static = lambda: find_ip_record(get_default_gateway_ip(), get_arp_table())[0]
+
 
 def add_static_record(ip, mac, if_name):
     if not ip or not mac or not if_name:
@@ -93,11 +96,12 @@ def add_static_record(ip, mac, if_name):
     #     ("Powershell Start-Process -WindowStyle hidden 'netsh.exe' -ArgumentList 'interface ipv4 add neighbors \"%s\" \"%s\" \"%s\" store=active' -Verb runAs" % (if_name, ip, mac))
     #     so, we have to use elevation by ShellExecuteW:
     #     ShellExecuteW(None, "runas", simple_exe, simple_params, None, 1)
-    EXE_FILE = "netsh.exe"
+    exe_file = "netsh.exe"
     exe_params = "interface ipv4 add neighbors \"%s\" \"%s\" \"%s\" store=active" % (if_name, ip, mac)
-    ctypes.windll.shell32.ShellExecuteW(None, "runas", EXE_FILE, exe_params, None, 1)
+    ctypes.windll.shell32.ShellExecuteW(None, "runas", exe_file, exe_params, None, 1)
 
 set_gw_static = lambda: add_static_record(get_default_gateway_ip(), find_gw_mac(), get_default_gateway_interface_name())
+
 
 def remove_static_record(ip):
     cmd = "Powershell Start-Process -WindowStyle hidden 'arp.exe' -ArgumentList '-d %s' -Verb runAs" % ip
@@ -279,7 +283,7 @@ class BarpMainWindow(QMainWindow):
 if __name__ == '__main__':
     # only for Windows - do not allow second instance
     hMutex = win32event.CreateMutex(None, pywintypes.TRUE, PRODUCT_NAME)
-    if (win32api.GetLastError() == 183):  # ERROR_ALREADY_EXISTS = 183
+    if win32api.GetLastError() == 183:  # ERROR_ALREADY_EXISTS = 183
         sys.exit()
     app = BarpApp(sys.argv)
     app.show_tray_menu()
