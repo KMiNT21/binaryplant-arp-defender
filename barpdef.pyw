@@ -19,7 +19,7 @@ from PyQt5.QtCore import QSettings, QTimer
 PRODUCT_NAME = 'ARP Defender'
 COMPANY_NAME = 'BinaryPlant'
 FULL_PRODUCT_NAME = 'BinaryPlant ARP Defender'
-HKEY = "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run"
+HKEY = 'HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run'
 SETTINGS_START_MINIMIZED = 'settings_start_minimized'
 SETTINGS_AUTO_PROTECT = 'settings_auto_protect'
 TIMER_IN_SEC = 60
@@ -103,6 +103,7 @@ def add_static_record(ip, mac, if_name):
     exe_params = "interface ipv4 add neighbors \"%s\" \"%s\" \"%s\" store=active" % (if_name, ip, mac)
     ctypes.windll.shell32.ShellExecuteW(None, "runas", exe_file, exe_params, None, 1)
 
+
 set_gw_static = lambda: add_static_record(get_default_gateway_ip(), find_gw_mac(), get_default_gateway_interface_name())
 
 
@@ -175,6 +176,10 @@ class BarpMainWindow(QMainWindow):
         self.oldWndProc = win32gui.SetWindowLong(self.winId(), win32con.GWL_WNDPROC, self.localWndProc)
 
     def accept(self):
+        """
+        When user press 'OK' button:
+        Saving settings and hiding window.
+        """
         QSettings(COMPANY_NAME, PRODUCT_NAME).setValue(SETTINGS_START_MINIMIZED, self.checkBox_StartMinimized.isChecked())
         QSettings(COMPANY_NAME, PRODUCT_NAME).setValue(SETTINGS_AUTO_PROTECT, self.checkBox_AutoProtect.isChecked())
         if self.checkBox_AutoRun.isChecked():
@@ -184,6 +189,10 @@ class BarpMainWindow(QMainWindow):
         self.hide()
 
     def reload_checkboxes(self):
+        """
+        When user press 'Cancel' button:
+        Resetting UI to  values from settings.
+        """
         self.checkBox_StartMinimized.setChecked(QSettings(COMPANY_NAME, PRODUCT_NAME).value(SETTINGS_START_MINIMIZED, type=bool))
         self.checkBox_AutoProtect.setChecked(QSettings(COMPANY_NAME, PRODUCT_NAME).value(SETTINGS_AUTO_PROTECT, type=bool))
         self.checkBox_AutoRun.setChecked(QSettings(HKEY, QSettings.NativeFormat).contains(PRODUCT_NAME))
@@ -276,13 +285,21 @@ class BarpMainWindow(QMainWindow):
         event.ignore()
         self.hide()
 
-    def localWndProc(self, hWnd, msg, wParam, lParam):  # win32 API
+    def localWndProc(self, hWnd, msg, wParam, lParam):
+        """
+        WindowProc callback function (https://msdn.microsoft.com/en-us/library/windows/desktop/ms633573%28v=vs.85%29.aspx)
+
+        We need this to hook event when the system has resumed operation after being suspended.
+        ARP-cache will be erased, so wee need to protect us again. If SETTINGS_AUTO_PROTECT - 'call set_gw_static'
+
+        """
         if msg == win32con.WM_POWERBROADCAST and wParam == win32con.PBT_APMRESUMESUSPEND:
             if QSettings(COMPANY_NAME, PRODUCT_NAME).value(SETTINGS_AUTO_PROTECT, type=bool) and not is_gw_static():
                 QTimer.singleShot(5000, set_gw_static)
         return win32gui.CallWindowProc(self.oldWndProc, hWnd, msg, wParam, lParam)
 
 
+# _______________________________________________________________________________________________________________________________________
 if __name__ == '__main__':
     # only for Windows - do not allow second instance
     hMutex = win32event.CreateMutex(None, pywintypes.TRUE, PRODUCT_NAME)
@@ -295,5 +312,4 @@ if __name__ == '__main__':
     if QSettings(COMPANY_NAME, PRODUCT_NAME).value(SETTINGS_AUTO_PROTECT, type=bool) and not is_gw_static():
         QTimer.singleShot(5000, set_gw_static)
         QTimer.singleShot(8000, app.settings_window.on_timer)
-
     sys.exit(app.exec_())
