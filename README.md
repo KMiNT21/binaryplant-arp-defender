@@ -54,4 +54,4 @@ Generating solid MSI installation file:
 
 If you need tool like arp-watch but for Windows to monitor and log all arp-events
 (new activity/station, flip flop, mac address changing) based on network sniffing with WinPCAP,
-you can use [BinaryPlant ARP Monitor](http://binaryplant.com/arp-monitor/)
+you can use [BinaryPlant ARP Monitor](http://binaryplant.kmint21.com/arp-monitor/)
